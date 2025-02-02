@@ -44,6 +44,7 @@ export default function DashboardPage() {
     if (auth && !auth.profile) return;
     setLoading(true);
     try {
+      if (!auth || !auth.profile) return;
       const response = await api.get(`/packages/recipient/${auth.profile.user_id}`);
       setRecipientPackages(response.data);
     } catch (error) {
@@ -57,6 +58,7 @@ export default function DashboardPage() {
     if (auth && !auth.profile) return;
     setLoading(true);
     try {
+      if (!auth || !auth.profile) return;
       const response = await api.get(`/packages/sender/${auth.profile.user_id}`);
       setSenderPackages(response.data);
     } catch (error) {

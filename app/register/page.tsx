@@ -1,6 +1,5 @@
 'use client';
-import { useState, useEffect, useContext } from 'react';
-import AuthContext from '@/context/AuthContext';
+import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 
 import { useRouter } from 'next/navigation';
@@ -61,7 +60,7 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const response = await api.post('/auth/register', {
+      await api.post('/auth/register', {
         username,
         password,
         role,
