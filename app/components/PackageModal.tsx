@@ -40,6 +40,12 @@ interface DeliveryFee {
   pricePerKgOffice: number;
 }
 
+interface Office {
+  id: number;
+  name: string;
+  address: string;
+}
+
 interface ModalProps {
   packageData?: Package | null;
   companyId: number;
@@ -66,12 +72,12 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
 
   const [clients, setClients] = useState<Client[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [, setDeliveryFees] = useState<DeliveryFee[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [error, setError] = useState('');
 
   const employeeType = auth?.profile?.emp_type || '';
 
-  // Fetch clients, employees, and delivery fees
+  // Fetch clients, employees, and offices when necessary
   useEffect(() => {
     const fetchClients = async () => {
       try {
@@ -91,23 +97,46 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
       }
     };
 
-    const fetchDeliveryFees = async () => {
-      try {
-        const response = await api.get(`/deliveryfees/${companyId}`);
-        setDeliveryFees([response.data]); // API returns one fee object
-      } catch (err) {
-        console.error('Failed to fetch delivery fees', err);
-      }
-    };
-
     fetchClients();
     fetchEmployees();
-    fetchDeliveryFees();
   }, [companyId]);
+
+  // Fetch offices when "OFFICE" is selected
+  useEffect(() => {
+    if (formData.deliveryType === 'OFFICE') {
+      const fetchOffices = async () => {
+        try {
+          const response = await api.get(`/offices/company/${companyId}`);
+          setOffices(response.data);
+        } catch (err) {
+          console.error('Failed to fetch offices', err);
+        }
+      };
+      fetchOffices();
+    }
+  }, [formData.deliveryType, companyId]);
 
   // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    if (name === 'deliveryType' && value === 'OFFICE') {
+      setFormData(prevState => ({
+        ...prevState,
+        deliveryType: 'OFFICE',
+        deliveryAddress: offices.length > 0 ? offices[0].address : '' // Default to first office
+      }));
+    } else if (name === 'deliveryAddress' && formData.deliveryType === 'OFFICE') {
+      setFormData(prevState => ({
+        ...prevState,
+        deliveryAddress: offices.find(office => office.address === value)?.address || ''
+      }));
+    } else {
+      setFormData(prevState => ({
+        ...prevState,
+        [name]: value
+      }));
+    }
   };
 
   // Handle form submission
@@ -171,56 +200,60 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
             ))}
           </select>
 
-          {/* Courier */}
-          <label className="block font-semibold">Courier</label>
-          <select
-            name="courierId"
-            value={formData.courierId || ''}
-            onChange={handleChange}
-            className="w-full p-2 border mb-2"
-            disabled={employeeType === 'COURIER'}
-          >
-            <option value="">Select Courier</option>
-            {employees.map(emp => (
-              <option key={emp.id} value={emp.user.id}>
-                {emp.user.username}
-              </option>
-            ))}
-          </select>
-
           {/* Delivery Type */}
           <label className="block font-semibold">Delivery Type</label>
-          <select name="deliveryType" value={formData.deliveryType} onChange={handleChange} className="w-full p-2 border mb-2" disabled={employeeType === 'COURIER'}>
+          <select name="deliveryType" value={formData.deliveryType} onChange={handleChange} className="w-full p-2 border mb-2">
             <option value="ADDRESS">Address</option>
             <option value="OFFICE">Office</option>
           </select>
 
-          {/* Delivery Address */}
-          <label className="block font-semibold">Delivery Address</label>
-          <input type="text" name="deliveryAddress" value={formData.deliveryAddress} onChange={handleChange} className="w-full p-2 border mb-2" required disabled={employeeType === 'COURIER'} />
+          {/* Delivery Address or Office Selection */}
+          {formData.deliveryType === 'OFFICE' ? (
+            <>
+              <label className="block font-semibold">Select Office</label>
+              <select
+                name="deliveryAddress"
+                value={formData.deliveryAddress}
+                onChange={handleChange}
+                className="w-full p-2 border mb-2"
+              >
+                <option value="">Select Office</option>
+                {offices.map(office => (
+                  <option key={office.id} value={office.address}>
+                    {office.name} - {office.address}
+                  </option>
+                ))}
+              </select>
+              <>
+                <label className="block font-semibold">Delivery Address</label>
+                <input type="text" name="deliveryAddress" value={formData.deliveryAddress} onChange={handleChange} className="w-full p-2 border mb-2" required />
+              </>
+            </>
+          ) : (
+            <>
+              <label className="block font-semibold">Delivery Address</label>
+              <input type="text" name="deliveryAddress" value={formData.deliveryAddress} onChange={handleChange} className="w-full p-2 border mb-2" required />
+            </>
+          )}
 
           {/* Weight */}
           <label className="block font-semibold">Weight (kg)</label>
-          <input type="number" name="weight" value={formData.weight} onChange={handleChange} className="w-full p-2 border mb-2" required disabled={employeeType === 'COURIER'} />
+          <input type="number" name="weight" value={formData.weight} onChange={handleChange} className="w-full p-2 border mb-2" required />
 
           {/* Price */}
           <label className="block font-semibold">Price</label>
-          <input type="number" name="price" value={formData.price} onChange={handleChange} className="w-full p-2 border mb-2" required disabled={employeeType === 'COURIER'} />
+          <input type="number" name="price" value={formData.price} onChange={handleChange} className="w-full p-2 border mb-2" required />
 
           {/* Status */}
           <label className="block font-semibold">Status</label>
-          <select name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border mb-2" disabled={employeeType === 'CASHIER' ? true : false}>
+          <select name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border mb-2" disabled={employeeType === 'CASHIER'}>
             <option value="SENT">Sent</option>
             <option value="DELIVERED">Delivered</option>
           </select>
 
           <div className="flex justify-end mt-4">
-            <button type="button" onClick={onClose} className="bg-gray-400 text-white px-4 py-2 rounded mr-2">
-              Cancel
-            </button>
-            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded" disabled={employeeType === 'COURIER'}>
-              {isEditing ? 'Save Changes' : 'Create Package'}
-            </button>
+            <button type="button" onClick={onClose} className="bg-gray-400 text-white px-4 py-2 rounded mr-2">Cancel</button>
+            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">{isEditing ? 'Save Changes' : 'Create Package'}</button>
           </div>
         </form>
       </div>
