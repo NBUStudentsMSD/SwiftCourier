@@ -10,6 +10,7 @@ interface Profile {
   role: string;
   company_id?: number;
   office_id?: number;
+  emp_type?: string;
 }
 
 interface AuthContextType {

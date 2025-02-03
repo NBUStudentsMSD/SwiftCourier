@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import api from '@/lib/api';
+import AuthContext from '@/context/AuthContext';
 
 interface Package {
   id?: number;
@@ -30,6 +31,7 @@ interface Employee {
     id: number;
     username: string;
   };
+  employeeType: string;
 }
 
 interface DeliveryFee {
@@ -45,7 +47,9 @@ interface ModalProps {
 }
 
 export default function PackageModal({ packageData, companyId, onClose }: ModalProps) {
+  const auth = useContext(AuthContext);
   const isEditing = !!packageData?.id;
+
   const [formData, setFormData] = useState<Package>({
     id: packageData?.id,
     senderId: packageData?.senderId || 0,
@@ -62,8 +66,10 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
 
   const [clients, setClients] = useState<Client[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [deliveryFees, setDeliveryFees] = useState<DeliveryFee[]>([]);
+  const [, setDeliveryFees] = useState<DeliveryFee[]>([]);
   const [error, setError] = useState('');
+
+  const employeeType = auth?.profile?.emp_type || '';
 
   // Fetch clients, employees, and delivery fees
   useEffect(() => {
@@ -129,6 +135,7 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
         {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
 
         <form onSubmit={handleSubmit}>
+          {/* Sender */}
           <label className="block font-semibold">Sender</label>
           <select
             name="senderId"
@@ -136,6 +143,7 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
             onChange={handleChange}
             className="w-full p-2 border mb-2"
             required
+            disabled={employeeType === 'COURIER'}
           >
             <option value="">Select Sender</option>
             {clients.map(client => (
@@ -145,6 +153,7 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
             ))}
           </select>
 
+          {/* Recipient */}
           <label className="block font-semibold">Recipient</label>
           <select
             name="recipientId"
@@ -152,6 +161,7 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
             onChange={handleChange}
             className="w-full p-2 border mb-2"
             required
+            disabled={employeeType === 'COURIER'}
           >
             <option value="">Select Recipient</option>
             {clients.map(client => (
@@ -161,12 +171,14 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
             ))}
           </select>
 
+          {/* Courier */}
           <label className="block font-semibold">Courier</label>
           <select
             name="courierId"
             value={formData.courierId || ''}
             onChange={handleChange}
             className="w-full p-2 border mb-2"
+            disabled={employeeType === 'COURIER'}
           >
             <option value="">Select Courier</option>
             {employees.map(emp => (
@@ -176,42 +188,37 @@ export default function PackageModal({ packageData, companyId, onClose }: ModalP
             ))}
           </select>
 
+          {/* Delivery Type */}
           <label className="block font-semibold">Delivery Type</label>
-          <select name="deliveryType" value={formData.deliveryType} onChange={handleChange} className="w-full p-2 border mb-2">
+          <select name="deliveryType" value={formData.deliveryType} onChange={handleChange} className="w-full p-2 border mb-2" disabled={employeeType === 'COURIER'}>
             <option value="ADDRESS">Address</option>
             <option value="OFFICE">Office</option>
           </select>
 
+          {/* Delivery Address */}
           <label className="block font-semibold">Delivery Address</label>
-          <input type="text" name="deliveryAddress" value={formData.deliveryAddress} onChange={handleChange} className="w-full p-2 border mb-2" placeholder="Delivery Address" required />
+          <input type="text" name="deliveryAddress" value={formData.deliveryAddress} onChange={handleChange} className="w-full p-2 border mb-2" required disabled={employeeType === 'COURIER'} />
 
+          {/* Weight */}
           <label className="block font-semibold">Weight (kg)</label>
-          <input type="number" name="weight" value={formData.weight} onChange={handleChange} className="w-full p-2 border mb-2" placeholder="Weight (kg)" required />
+          <input type="number" name="weight" value={formData.weight} onChange={handleChange} className="w-full p-2 border mb-2" required disabled={employeeType === 'COURIER'} />
 
+          {/* Price */}
           <label className="block font-semibold">Price</label>
-          <input type="number" name="price" value={formData.price} onChange={handleChange} className="w-full p-2 border mb-2" placeholder="Price" required />
+          <input type="number" name="price" value={formData.price} onChange={handleChange} className="w-full p-2 border mb-2" required disabled={employeeType === 'COURIER'} />
 
+          {/* Status */}
           <label className="block font-semibold">Status</label>
-          <select name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border mb-2">
+          <select name="status" value={formData.status} onChange={handleChange} className="w-full p-2 border mb-2" disabled={employeeType === 'CASHIER' ? true : false}>
             <option value="SENT">Sent</option>
             <option value="DELIVERED">Delivered</option>
-          </select>
-
-          <label className="block font-semibold">Delivery Fee</label>
-          <select name="deliveryFeeId" value={formData.deliveryFeeId || ''} onChange={handleChange} className="w-full p-2 border mb-2" required>
-            <option value="">Select Fee</option>
-            {deliveryFees.map(fee => (
-              <option key={fee.id} value={fee.id}>
-                Address: ${fee.pricePerKgAddress.toFixed(2)}, Office: ${fee.pricePerKgOffice.toFixed(2)}
-              </option>
-            ))}
           </select>
 
           <div className="flex justify-end mt-4">
             <button type="button" onClick={onClose} className="bg-gray-400 text-white px-4 py-2 rounded mr-2">
               Cancel
             </button>
-            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded" disabled={employeeType === 'COURIER'}>
               {isEditing ? 'Save Changes' : 'Create Package'}
             </button>
           </div>
